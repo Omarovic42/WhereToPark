@@ -1,0 +1,18 @@
+# BC04 — Gestion des mises à jour des dépendances et bibliothèques tierces.
+# Dependabot surveille les nouvelles versions chaque semaine, regroupe les
+# bumps mineurs/patch en une PR unique qui repasse toute la CI avant fusion.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /api
+    schedule: { interval: weekly, day: monday }
+    groups:
+      minor-et-patch:
+        update-types: ["minor", "patch"]
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: docker
+    directory: /api
+    schedule: { interval: weekly }

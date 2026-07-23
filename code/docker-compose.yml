@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4-alpine
+    environment:
+      POSTGRES_DB: wheretopark
+      POSTGRES_USER: wtp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wtp_dev_only}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wtp -d wheretopark"]
+      interval: 5s
+      retries: 10
+    ports: ["5432:5432"]
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    environment:
+      DATABASE_URL: postgres://wtp:${POSTGRES_PASSWORD:-wtp_dev_only}@db:5432/wheretopark
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      PORT: 5000
+    depends_on:
+      db:
+        condition: service_healthy
+    ports: ["5000:5000"]
+    restart: unless-stopped
+
+volumes:
+  pgdata:

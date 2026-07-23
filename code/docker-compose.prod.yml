@@ -1,0 +1,40 @@
+# ═══ Production HTTPS — nginx (reverse proxy) + certbot (Let's Encrypt) ═══
+# Usage :
+#   1) DNS : pointer votre domaine vers le serveur (A/AAAA)
+#   2) DOMAIN=mondomaine.fr EMAIL=admin@mondomaine.fr docker compose \
+#        -f docker-compose.yml -f docker-compose.prod.yml up -d
+#   3) Émission initiale du certificat (une fois) :
+#        docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+#          run --rm certbot certonly --webroot -w /var/www/certbot \
+#          -d $DOMAIN --email $EMAIL --agree-tos --no-eff-email
+#      puis : docker compose ... exec nginx nginx -s reload
+# Renouvellement : le service certbot retente toutes les 12 h (silencieux si non dû).
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    ports: ["80:80", "443:443"]
+    environment: { DOMAIN: "${DOMAIN:-localhost}" }
+    volumes:
+      - ./deploy/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - certbot-www:/var/www/certbot
+      - certbot-conf:/etc/letsencrypt
+    depends_on: [api]
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot
+    entrypoint: sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done'
+    volumes:
+      - certbot-www:/var/www/certbot
+      - certbot-conf:/etc/letsencrypt
+    restart: unless-stopped
+
+  api:
+    ports: []            # plus d'exposition directe : tout passe par nginx
+    expose: ["5000"]
+    environment:
+      CORS_ORIGIN: "https://${DOMAIN:-localhost}"
+
+volumes:
+  certbot-www:
+  certbot-conf:

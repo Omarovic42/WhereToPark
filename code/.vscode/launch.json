@@ -1,0 +1,12 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    { "name": "Déboguer l'API (mode démo)", "type": "node", "request": "launch",
+      "program": "${workspaceFolder}/api/src/server.js", "cwd": "${workspaceFolder}/api",
+      "console": "integratedTerminal" },
+    { "name": "Déboguer les tests Jest", "type": "node", "request": "launch",
+      "program": "${workspaceFolder}/api/node_modules/.bin/jest",
+      "args": ["--runInBand"], "cwd": "${workspaceFolder}/api",
+      "console": "integratedTerminal", "windows": { "program": "${workspaceFolder}/api/node_modules/jest/bin/jest.js" } }
+  ]
+}

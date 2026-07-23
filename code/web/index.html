@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhereToPark — Le Waze du stationnement</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root{--bg:#0B1220;--panel:#111B2E;--panel2:#16233B;--line:#22314D;--txt:#E8EEF9;--muted:#8FA0BC;
+--brand:#2E7CF6;--navy:#132B57;--free:#2BD576;--busy:#FF5A6E;--warn:#FFB020;--violet:#8B6CFF;--ev:#38D9C8;--r:16px}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui,-apple-system,sans-serif}
+body{background:var(--bg);color:var(--txt);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:16px;padding:8px 18px;background:var(--panel);border-bottom:1px solid var(--line);z-index:1200}
+.logo img{height:44px;display:block}
+.mode{font-size:10px;padding:3px 9px;border-radius:99px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.mode.live{border-color:var(--free);color:var(--free)}
+.search{flex:1;max-width:560px;display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:9px 14px;position:relative}
+.search input{flex:1;background:none;border:none;outline:none;color:var(--txt);font-size:14px}
+.search input::placeholder{color:var(--muted)}
+.search .go{background:var(--brand);border:none;color:#fff;border-radius:8px;padding:5px 12px;font-weight:700;cursor:pointer;font-size:12px}
+.gami{margin-left:auto;display:flex;align-items:center;gap:12px}
+.chip{display:flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:7px 13px;font-size:13px;font-weight:600;white-space:nowrap}
+.chip .lvl{color:var(--warn)}.chip .pts{color:var(--free)}
+.locate{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:8px 11px;cursor:pointer;font-size:15px}
+.locate:hover{border-color:var(--brand)}
+ main{flex:1;display:flex;min-height:0}
+#map{flex:1;z-index:1}
+.leaflet-container{background:var(--bg)}
+aside{width:344px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto}
+section{padding:16px 18px;border-bottom:1px solid var(--line)}
+h2{font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--muted);margin-bottom:12px}
+.ia{background:linear-gradient(135deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.ia .top{display:flex;justify-content:space-between;align-items:baseline}
+.ia .prob{font-size:42px;font-weight:800;color:var(--free);line-height:1}
+.ia .eta{text-align:right}.ia .eta b{font-size:20px}
+.ia .eta span,.ia .lbl{display:block;font-size:11px;color:var(--muted);margin-top:3px}
+.bar{height:7px;background:var(--panel2);border-radius:99px;margin-top:14px;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--free),var(--brand));border-radius:99px;transition:width .6s}
+.ia .hint{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5}
+.osm{display:flex;justify-content:space-between;align-items:center;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:12px;color:var(--muted)}
+.osm b{color:var(--txt);font-size:16px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:9px;font-size:11px;color:var(--muted)}
+.legend i{display:inline-block;width:16px;height:4px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.reports{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.rbtn{border:1px solid var(--line);background:var(--panel2);color:var(--txt);border-radius:12px;padding:11px 8px;font-size:12.5px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:transform .12s,border-color .12s}
+.rbtn:hover{transform:translateY(-2px);border-color:var(--brand)}
+.rbtn:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.rbtn .ico{font-size:20px}
+.rbtn.free .ico{color:var(--free)}.rbtn.busy .ico{color:var(--busy)}.rbtn.leave .ico{color:var(--brand)}
+.rbtn.full .ico{color:var(--warn)}.rbtn.ctrl .ico{color:var(--violet)}.rbtn.zone .ico{color:var(--muted)}
+.filters{display:flex;flex-wrap:wrap;gap:8px}
+.fchip{border:1px solid var(--line);background:var(--panel2);color:var(--muted);border-radius:999px;padding:7px 13px;font-size:12.5px;cursor:pointer}
+.fchip.on{background:rgba(46,124,246,.16);border-color:var(--brand);color:var(--txt)}
+.feed{display:flex;flex-direction:column;gap:9px}
+.evt{display:flex;gap:10px;align-items:flex-start;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:12.5px;animation:pop .3s ease}
+.evt .dot{width:9px;height:9px;border-radius:99px;margin-top:4px;flex:none}
+.evt .t{color:var(--muted);font-size:11px;margin-top:2px}
+.evt .conf{margin-left:auto;color:var(--free);font-size:11px;font-weight:700;cursor:pointer}
+@keyframes pop{from{transform:translateY(6px);opacity:0}to{transform:none;opacity:1}}
+@media(prefers-reduced-motion:reduce){.evt{animation:none}.rbtn{transition:none}}
+footer{display:flex;gap:22px;padding:10px 20px;background:var(--panel);border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);align-items:center}
+footer b{color:var(--txt)}
+footer .src{margin-left:auto;font-size:11px}
+.toast{position:fixed;bottom:64px;left:50%;transform:translateX(-50%) translateY(20px);background:#132445;border:1px solid var(--brand);border-radius:12px;padding:12px 20px;font-size:14px;font-weight:600;opacity:0;transition:.3s;z-index:2000;pointer-events:none;max-width:80vw;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.mk{border-radius:99px;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+.pmk{display:grid;place-items:center;border-radius:9px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);color:#fff;font-weight:800;font-size:12px;font-family:Segoe UI,sans-serif}
+.pk-pop{font-size:13px;line-height:1.55}.pk-pop b{font-size:14px}
+.pk-pop .tag{display:inline-block;font-size:10px;border:1px solid var(--line);border-radius:99px;padding:1px 7px;margin:2px 2px 0 0;color:var(--muted)}
+.pk-pop .go{display:inline-block;margin-top:8px;background:var(--brand);color:#fff;border-radius:8px;padding:6px 12px;font-weight:700;cursor:pointer;font-size:12px}
+.leaflet-popup-content-wrapper{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:12px}
+.leaflet-popup-tip{background:var(--panel2)}
+@media(max-width:900px){aside{position:absolute;right:0;top:61px;bottom:0;width:min(330px,85vw);transform:translateX(100%);transition:.3s;z-index:1100}aside.open{transform:none}.menu{display:block!important}.logo img{height:36px}}
+.menu{display:none;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:8px 12px;cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo" role="banner"><img src="logo.png" alt="WhereToPark"></div>
+  <span class="mode" id="mode" title="Statut de la connexion API">démo</span>
+  <div class="search" role="search">🔍<input id="q" aria-label="Rechercher une destination dans le monde" placeholder="Une adresse, une ville, n'importe où dans le monde…" onkeydown="if(event.key==='Enter')searchGo()"><button class="go" onclick="searchGo()">Rechercher</button></div>
+  <div class="gami">
+    <button class="locate" onclick="locateMe()" aria-label="Me localiser" title="Me localiser">📍</button>
+    <div class="chip"><span class="lvl">⭐ Niv. <span id="lvl">1</span></span></div>
+    <div class="chip"><span class="pts">◆ <span id="pts">0</span> pts</span></div>
+    <button class="menu" aria-label="Ouvrir le panneau" onclick="document.querySelector('aside').classList.toggle('open')">☰</button>
+  </div>
+</header>
+<main>
+  <div id="map" role="application" aria-label="Carte mondiale des places de stationnement"></div>
+  <aside>
+    <section><h2>IA prédictive</h2>
+      <div class="ia"><div class="top">
+        <div><span class="prob" id="prob">— %</span><span class="lbl">Probabilité de trouver une place</span></div>
+        <div class="eta"><b id="eta">—</b><span>temps estimé</span></div></div>
+        <div class="bar"><i id="probbar" style="width:0%"></i></div>
+        <div class="hint" id="hint">Analyse de la zone en cours…</div></div>
+    </section>
+    <section><h2>Parkings référencés (monde)</h2>
+      <div class="osm"><span>Base OpenStreetMap<br><span id="osmstate">chargement de la zone…</span></span>
+        <span style="text-align:right"><b id="nosm">—</b><br><span style="font-size:11px">🛣️ <b id="nstreet" style="font-size:12px">—</b> rues</span></span></div>
+      <div class="legend">
+        <span><i style="background:#2BD576"></i>voirie gratuite</span>
+        <span><i style="background:#2E7CF6"></i>payante</span>
+        <span><i style="background:#FFB020"></i>zone bleue</span>
+        <span><i style="background:#8B6CFF"></i>résidents</span>
+      </div>
+    </section>
+    <section><h2>Signaler à la communauté</h2>
+      <div class="reports">
+        <button class="rbtn free" onclick="report('free')" aria-label="Signaler une place libre"><span class="ico" aria-hidden="true">●</span>Place libre</button>
+        <button class="rbtn busy" onclick="report('busy')" aria-label="Signaler une place occupée"><span class="ico" aria-hidden="true">●</span>Place occupée</button>
+        <button class="rbtn leave" onclick="report('leave')" aria-label="Signaler un départ imminent"><span class="ico" aria-hidden="true">➜</span>Départ imminent</button>
+        <button class="rbtn full" onclick="report('full')" aria-label="Signaler un parking complet"><span class="ico" aria-hidden="true">▲</span>Parking complet</button>
+        <button class="rbtn ctrl" onclick="report('control')" aria-label="Signaler un contrôle"><span class="ico" aria-hidden="true">◆</span>Contrôle</button>
+        <button class="rbtn zone" onclick="report('blue_zone')" aria-label="Signaler une zone bleue"><span class="ico" aria-hidden="true">■</span>Zone bleue</button>
+      </div>
+    </section>
+    <section><h2>Filtres intelligents</h2>
+      <div class="filters" id="filters">
+        <span class="fchip" data-f="fee_no" role="button" tabindex="0">Gratuit</span>
+        <span class="fchip" data-f="covered" role="button" tabindex="0">Couvert / souterrain</span>
+        <span class="fchip" data-f="pmr" role="button" tabindex="0">PMR ♿</span>
+        <span class="fchip" data-f="ev" role="button" tabindex="0">Recharge ⚡</span>
+        <span class="fchip" data-f="surface" role="button" tabindex="0">En surface</span>
+      </div>
+    </section>
+    <section style="border:none"><h2>Activité en temps réel</h2><div class="feed" id="feed" aria-live="polite"></div></section>
+  </aside>
+</main>
+<footer>
+  <span>🅿️ <b id="nfree">—</b> parkings dans la zone</span>
+  <span>🟢 <b id="nrep">—</b> signalements actifs</span>
+  <span class="src">Données : © OpenStreetMap (Overpass) · Nominatim · OSRM · communauté WhereToPark · <a href="legal.html#cgu" style="color:var(--muted)">CGU</a> · <a href="legal.html#confidentialite" style="color:var(--muted)">Confidentialité</a></span>
+</footer>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* ═════════════════════════════════════════════════════════════════
+   WhereToPark v2 — données réelles mondiales
+   · Parkings : OpenStreetMap via Overpass API (référentiel mondial ouvert,
+     équivalent open-data de Parkopedia — le port DataProvider permet de
+     brancher une API commerciale par la suite)
+   · Recherche : Nominatim (géocodage mondial)
+   · Itinéraires : OSRM (routage routier réel)
+   · Signalements / fiabilité / prédiction / gamification : API WhereToPark
+   ═════════════════════════════════════════════════════════════════ */
+
+// ─── Couche d'abstraction cartographique ───
+const API_BASE = location.protocol === 'file:' ? 'http://localhost:5000' : '';
+const apiPath = path => `${API_BASE}${path}`;
+const MapProvider={
+  tiles:null,
+  init(){
+    const m=L.map('map',{zoomControl:false}).setView([45.4397,4.3872],15);
+    this.tiles=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap contributors · © CARTO',maxZoom:19}).addTo(m);
+    L.control.zoom({position:'bottomleft'}).addTo(m);return m;},
+  setTiles(url){ // bascule vers des tuiles auto-hébergées (TILE_URL via /v1/config)
+    if(!url)return;
+    map.removeLayer(this.tiles);
+    this.tiles=L.tileLayer(url,{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(map);}
+};
+const map=MapProvider.init();
+const center=()=>map.getCenter();
+
+const COLORS={free:'#2BD576',busy:'#FF5A6E',leave:'#2E7CF6',full:'#FFB020',control:'#8B6CFF',blue_zone:'#8FA0BC'};
+const LABELS={free:'Place libre',busy:'Place occupée',leave:'Départ imminent',full:'Parking complet',control:'Contrôle de stationnement',blue_zone:'Zone bleue'};
+const dot=(c,s=15)=>L.divIcon({className:'',html:`<div class="mk" style="width:${s}px;height:${s}px;background:${c}"></div>`,iconSize:[s,s],iconAnchor:[s/2,s/2]});
+const pIcon=(c,label='P',s=24)=>L.divIcon({className:'',html:`<div class="pmk" style="width:${s}px;height:${s}px;background:${c}">${label}</div>`,iconSize:[s,s],iconAnchor:[s/2,s/2]});
+
+/* ═══ DataProvider : parkings mondiaux OpenStreetMap (Overpass) ═══ */
+const Osm={
+  cache:new Map(), layer:L.layerGroup().addTo(map), all:[], busy:false,
+  key(){const c=center();return `${c.lat.toFixed(2)}|${c.lng.toFixed(2)}|${map.getZoom()>=15?'n':'f'}`;},
+  async load(){
+    if(map.getZoom()<13){document.getElementById('osmstate').textContent='zoomez pour charger les parkings';return;}
+    const k=this.key();
+    if(this.cache.has(k)){this.render(this.cache.get(k));return;}
+    if(this.busy)return; this.busy=true;
+    const c=center(), r=map.getZoom()>=15?1200:2500;
+    document.getElementById('osmstate').textContent='chargement OSM…';
+    try{
+      const url = apiPath(`/v1/osm/parkings?lat=${c.lat}&lng=${c.lng}&radius=${r}`);
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('API OSM '+res.status);
+      const data = await res.json();
+      if(data.error) throw new Error(data.error);
+      const items = normalizeOsmResponse(data);
+      this.cache.set(k,items);
+      this.render(items);
+      document.getElementById('osmstate').textContent='zone chargée · cache actif';
+    }catch(e){
+      console.warn('OSM load failed', e);
+      document.getElementById('osmstate').textContent='Source OSM indisponible — réessai au prochain déplacement';
+    }finally{this.busy=false;}
+  },
+  render(items){
+    this.all=items; this.layer.clearLayers();
+    const {pois=[],streets=[]}=items||{};
+    const f=activeFilters();
+    let shown=0;
+    pois.forEach(p=>{
+      if(f.length){
+        const ok=f.every(x=>
+          x==='fee_no'?(p.fee==='no'):
+          x==='covered'?p.covered:
+          x==='surface'?(p.ptype==='surface'||(!p.covered&&p.kind==='parking')):
+          x==='pmr'?(p.pmr>0):
+          x==='ev'?(p.kind==='ev'):
+          x==='street'?false:true);
+        if(!ok)return;
+      }
+      shown++;
+      const color=p.kind==='ev'?'#38D9C8':p.covered?'#132B57':'#2E7CF6';
+      const tags=[
+        p.capacity?`${p.capacity} places`:null, p.pmr?`♿ ${p.pmr}`:null,
+        p.fee==='no'?'gratuit':p.fee==='yes'?'payant':null,
+        p.ptype==='underground'?'souterrain':p.ptype==='multi-storey'?'en ouvrage':p.ptype==='surface'?'surface':null,
+        p.operator, p.access==='private'?'privé':null,
+      ].filter(Boolean).map(t=>`<span class="tag">${t}</span>`).join('');
+      L.marker([p.lat,p.lng],{icon:pIcon(color,p.kind==='ev'?'⚡':'P')})
+        .bindPopup(`<div class="pk-pop"><b>${p.kind==='ev'?'⚡':'🅿️'} ${p.name}</b><br>${tags||'<span class="tag">données OSM</span>'}<br><span class="go" onclick="navTo(${p.lat},${p.lng},'${p.name.replace(/'/g,'’')}')">🧭 Itinéraire réel</span></div>`)
+        .addTo(this.layer);
+    });
+    // ─ Voirie : rues où le stationnement est autorisé (parking:lane / parking:left|right|both)
+    const hideStreets=f.some(x=>['covered','pmr','ev'].includes(x));
+    let nStreets=0;
+    if(!hideStreets) streets.forEach(s=>{
+      if(f.includes('fee_no')&&s.condition!=='free')return;
+      nStreets++;
+      const sc=STREET_STYLE[s.condition]||STREET_STYLE.unknown;
+      const mid=s.points[Math.floor(s.points.length/2)];
+      L.polyline(s.points,{color:sc.c,weight:4,opacity:.75,dashArray:sc.d||null,lineCap:'round'})
+        .bindPopup(`<div class="pk-pop"><b>🛣️ Stationnement en voirie</b><br>${s.name} — <span class="tag">${sc.l}</span><br><span class="go" onclick="navTo(${mid[0]},${mid[1]},'${s.name.replace(/'/g,'’')}')">🧭 Itinéraire réel</span></div>`)
+        .addTo(this.layer);
+    });
+    document.getElementById('nosm').textContent=pois.filter(i=>i.kind==='parking').length;
+    document.getElementById('nstreet').textContent=nStreets;
+    document.getElementById('nfree').textContent=shown;
+  }
+};
+const STREET_STYLE={
+  free:{c:'#2BD576',l:'gratuit'},
+  paid:{c:'#2E7CF6',l:'payant'},
+  disc:{c:'#FFB020',l:'zone bleue (disque)',d:'6 8'},
+  residents:{c:'#8B6CFF',l:'résidents',d:'2 7'},
+  unknown:{c:'#8FA0BC',l:'autorisé (conditions non renseignées)'},
+};
+function normalizeOsmResponse(data){
+  if(data.elements){
+    const pois=[], streets=[], seen=new Set();
+    data.elements.forEach(e=>{
+      const id='osm-'+e.type+e.id;
+      if(seen.has(id))return; seen.add(id);
+      const t=e.tags||{};
+      if(e.geometry && !t.amenity){
+        const st=classifyStreet(t);
+        if(st) streets.push({id, condition:st, name:t.name||'Voie', points:e.geometry.map(g=>[g.lat,g.lon])});
+        return;
+      }
+      const lat=e.lat??e.center?.lat, lng=e.lon??e.center?.lon;
+      if(lat==null||lng==null)return;
+      pois.push({
+        id, lat, lng,
+        kind:t.amenity==='charging_station'?'ev':'parking',
+        name:t.name||(t.amenity==='charging_station'?'Borne de recharge':'Parking'),
+        capacity:t.capacity?parseInt(t.capacity):null,
+        fee:t.fee, covered:(t.parking==='underground'||t.parking==='multi-storey'||t.covered==='yes'),
+        ptype:t.parking||null, access:t.access||null,
+        pmr:t['capacity:disabled']?parseInt(t['capacity:disabled']):(t.wheelchair==='yes'?1:0),
+        operator:t.operator||null,
+      });
+    });
+    return {pois,streets};
+  }
+  if(data.parkings){
+    return {
+      pois:data.parkings.map(p=>({
+        id:p.id, lat:p.lat, lng:p.lng, kind:p.type==='ev'?'ev':'parking',
+        name:p.name||'Parking', capacity:p.capacity||null, fee:p.fee||null,
+        covered:p.covered||false, ptype:p.type||null, access:p.access||null,
+        pmr:p.pmr||0, operator:p.operator||null,
+      })),
+      streets:data.streets||[],
+    };
+  }
+  return {pois:[],streets:[]};
+}
+// Classification d'un segment selon les deux schémas OSM (legacy parking:lane:* et actuel parking:left/right/both)
+function classifyStreet(t){
+  let allowed=false, cond=null;
+  for(const side of ['left','right','both']){
+    const lane=t[`parking:lane:${side}`]||t[`parking:${side}`];
+    if(lane&&!/^(no|no_parking|no_stopping|none|separate)$/.test(lane))allowed=true;
+    const c=t[`parking:condition:${side}`]||t[`parking:condition:${side}:default`];
+    const fee=t[`parking:${side}:fee`];
+    const acc=t[`parking:${side}:access`];
+    if(c==='disc'||t[`parking:${side}:restriction`]==='disc')cond='disc';
+    else if(c==='residents'||acc==='residents'||acc==='private')cond=cond??'residents';
+    else if(c==='free'||fee==='no')cond=cond??'free';
+    else if(c==='ticket'||fee==='yes')cond=cond??'paid';
+  }
+  return allowed?(cond||'unknown'):null;
+}
+let osmTimer;
+map.on('moveend',()=>{clearTimeout(osmTimer);osmTimer=setTimeout(()=>{Osm.load();refreshCommunity();predictUI();},650);});
+
+/* ═══ Recherche mondiale (Nominatim) ═══ */
+async function searchGo(){
+  const q=document.getElementById('q').value.trim();if(!q)return;
+  toast(`Recherche « ${q} »…`);
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`,{headers:{'Accept-Language':'fr'}});
+    const res=await r.json();
+    if(!res.length){toast('Aucun résultat pour cette recherche');return;}
+    const {lat,lon,display_name}=res[0];
+    map.flyTo([+lat,+lon],15,{duration:1.2});
+    toast(`📍 ${display_name.split(',').slice(0,3).join(',')}`);
+  }catch(e){toast('Service de recherche indisponible');}
+}
+
+/* ═══ Itinéraire routier réel (OSRM) ═══ */
+let route;
+async function navTo(lat,lng,name){
+  if(route)map.removeLayer(route);
+  const c=center();
+  const osrmBase=Api.cfg.osrmUrl||'https://router.project-osrm.org'; // auto-hébergé si configuré (cf. docker-compose.selfhost.yml)
+  try{
+    const r=await fetch(`${osrmBase}/route/v1/driving/${c.lng},${c.lat};${lng},${lat}?overview=full&geometries=geojson`);
+    const d=await r.json();
+    if(d.code!=='Ok')throw 0;
+    const coords=d.routes[0].geometry.coordinates.map(([x,y])=>[y,x]);
+    route=L.polyline(coords,{color:'#2E7CF6',weight:5,opacity:.9,lineCap:'round'}).addTo(map);
+    map.fitBounds(route.getBounds(),{padding:[60,60]});
+    const min=Math.round(d.routes[0].duration/60), km=(d.routes[0].distance/1000).toFixed(1);
+    toast(`🧭 ${name} — ${km} km · ${min} min par la route`);
+  }catch(e){
+    route=L.polyline([[c.lat,c.lng],[lat,lng]],{color:'#2E7CF6',weight:5,opacity:.85,dashArray:'1 10'}).addTo(map);
+    map.fitBounds(route.getBounds(),{padding:[60,60]});
+    toast(`🧭 Guidage vers ${name} (routage indisponible, ligne directe)`);
+  }
+}
+
+/* ═══ Géolocalisation ═══ */
+let geoConsent=false;
+function locateMe(){
+  if(!navigator.geolocation){toast('Géolocalisation non disponible');return;}
+  if(!geoConsent){
+    if(!confirm("WhereToPark utilise votre position uniquement pour centrer la carte, à votre demande. Elle n'est ni stockée ni transmise à nos serveurs (détails : page Confidentialité). Autoriser ?"))return;
+    geoConsent=true;
+  }
+  navigator.geolocation.getCurrentPosition(
+    pos=>{map.flyTo([pos.coords.latitude,pos.coords.longitude],16,{duration:1});toast('📍 Position trouvée');},
+    ()=>toast('Autorisation de localisation refusée'));
+}
+
+/* ═══ API WhereToPark (signalements · fiabilité · prédiction · points) ═══ */
+const Api={
+  live:false, token:null, cfg:{osrmUrl:null,tileUrl:null},
+  async boot(){
+    try{
+      const h=await fetch(apiPath('/health'),{signal:AbortSignal.timeout(2500)});if(!h.ok)throw 0;
+      const email=`demo-${crypto.randomUUID().slice(0,8)}@wheretopark.app`, password='DemoPass!2026';
+      await fetch(apiPath('/v1/auth/register'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+      const l=await fetch(apiPath('/v1/auth/login'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+      this.token=(await l.json()).accessToken;this.live=!!this.token;
+      try{this.cfg=await(await fetch(apiPath('/v1/config'))).json();}catch(e){}
+      MapProvider.setTiles(this.cfg.tileUrl);
+    }catch(e){this.live=false;}
+    const b=document.getElementById('mode');
+    b.textContent=this.live?'● API connectée':'démo autonome';
+    b.classList.toggle('live',this.live);
+    if(this.live)this.socket();
+  },
+  socket(){
+    const s=document.createElement('script');s.src=apiPath('/socket.io/socket.io.js');
+    s.onload=()=>{this.io=io();this.joinZone();
+      this.io.on('report:new',r=>{Community.add(r);feed(r.type,'Communauté · à l’instant');});
+      this.io.on('report:confirmed',()=>refreshCommunity());};
+    document.body.appendChild(s);
+  },
+  async joinZone(){
+    if(!this.io)return;
+    try{const c=center();const d=await(await fetch(apiPath(`/v1/spots?lat=${c.lat}&lng=${c.lng}`))).json();this.io.emit('zone:join',d.zone);}catch(e){}
+  },
+  async spots(){const c=center();return (await fetch(apiPath(`/v1/spots?lat=${c.lat}&lng=${c.lng}&radius=3000`))).json();},
+  async predict(){const c=center();return (await fetch(apiPath(`/v1/predictions?lat=${c.lat}&lng=${c.lng}`))).json();},
+  async report(type){
+    const c=center(),lat=c.lat+(Math.random()-.5)*.001,lng=c.lng+(Math.random()-.5)*.001;
+    const r=await fetch(apiPath('/v1/reports'),{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${this.token}`},body:JSON.stringify({type,lat,lng})});
+    if(!r.ok)throw new Error((await r.json()).error||r.status);return r.json();},
+  async confirm(id){const r=await fetch(apiPath(`/v1/reports/${id}/confirm`),{method:'POST',headers:{Authorization:`Bearer ${this.token}`}});return r.ok?r.json():null;}
+};
+
+/* ═══ Signalements communautaires ═══ */
+const Community={
+  layer:L.layerGroup().addTo(map), items:[],
+  add(r){this.items.push(r);this.render();},
+  set(items){this.items=items;this.render();},
+  render(){
+    this.layer.clearLayers();
+    this.items.forEach(s=>L.marker([s.lat,s.lng],{icon:dot(COLORS[s.type]||'#8FA0BC',13)})
+      .bindPopup(`<div class="pk-pop"><b>${LABELS[s.type]||s.type}</b><br>Score de fiabilité : <b>${s.reliability??100} %</b><br><span class="go" onclick="confirmSpot('${s.id||''}',this)">👍 Confirmer (+5 pts)</span></div>`)
+      .addTo(this.layer));
+    document.getElementById('nrep').textContent=this.items.length;
+  }
+};
+async function refreshCommunity(){
+  if(Api.live){try{const d=await Api.spots();Community.set(d.reports);Api.joinZone();return;}catch(e){}}
+  if(!Community.items.length){
+    const c=center();
+    Community.set(Array.from({length:14},()=>({type:Math.random()<.6?'free':'busy',lat:c.lat+(Math.random()-.5)*.012,lng:c.lng+(Math.random()-.5)*.018,reliability:70+Math.floor(Math.random()*30)})));
+  }
+}
+
+/* ═══ Prédiction ═══ */
+async function predictUI(){
+  let p;
+  if(Api.live){try{p=await Api.predict();}catch(e){}}
+  if(!p){const h=new Date().getHours(),fr=Community.items.filter(s=>s.type==='free').length/Math.max(Community.items.length,1);
+    let b=55+fr*45;if(h>=9&&h<=11)b-=12;if(h>=17&&h<=19)b-=20;if(h>=21||h<=6)b+=10;
+    const prob=Math.max(18,Math.min(97,Math.round(b)));p={probability:prob,etaMinutes:Math.max(1,Math.round((100-prob)/9))};}
+  const el=document.getElementById('prob');
+  el.textContent=p.probability+' %';
+  el.style.color=p.probability>70?'#2BD576':p.probability>40?'#FFB020':'#FF5A6E';
+  document.getElementById('probbar').style.width=p.probability+'%';
+  document.getElementById('eta').textContent=p.etaMinutes+' min';
+  document.getElementById('hint').textContent=p.probability>70?"Fort taux de rotation détecté. Les signalements « départ imminent » à proximité augmentent vos chances."
+    :p.probability>40?"Affluence modérée. Élargissez le rayon de 300 m pour +18 % de probabilité."
+    :"Heure de pointe : privilégiez les parkings en ouvrage référencés dans la zone.";
+}
+
+/* ═══ Actions & gamification ═══ */
+let pts=0;
+function setPts(n){pts=n;document.getElementById('pts').textContent=pts;document.getElementById('lvl').textContent=1+Math.floor(pts/100);}
+async function report(type){
+  if(Api.live){
+    try{const r=await Api.report(type);setPts(r.points);Community.add(r.report);toast(`${LABELS[type]} signalé · +10 pts ◆`);feed(type,'Vous · à l’instant',true);return;}
+    catch(e){toast('⚠ '+e.message);return;}
+  }
+  const c=center();
+  Community.add({type,lat:c.lat+(Math.random()-.5)*.001,lng:c.lng+(Math.random()-.5)*.001,reliability:100});
+  setPts(pts+10);toast(`${LABELS[type]} signalé · +10 pts ◆`);feed(type,'Vous · à l’instant',true);
+}
+async function confirmSpot(id,el){
+  if(Api.live&&id){const r=await Api.confirm(id);if(r)setPts(r.points);}else setPts(pts+5);
+  toast('Signalement confirmé · +5 pts ◆');if(el)el.textContent='✓ Confirmé';
+}
+
+/* ═══ Filtres, fil, toast ═══ */
+const activeFilters=()=>[...document.querySelectorAll('.fchip.on')].map(c=>c.dataset.f);
+document.getElementById('filters').addEventListener('click',e=>{
+  if(!e.target.classList.contains('fchip'))return;
+  e.target.classList.toggle('on');Osm.render(Osm.all);toast('Filtres mis à jour');});
+const names=['Léa','Karim','Mounia','Théo','Sofiane','Emma','Nadia','Hugo'];
+function feed(type,who,mine=false){const f=document.getElementById('feed'),e=document.createElement('div');e.className='evt';
+  e.innerHTML=`<span class="dot" style="background:${COLORS[type]||'#8FA0BC'}"></span><span><b>${LABELS[type]||type}</b><span class="t"><br>${who}</span></span>${mine?'':'<span class="conf" onclick="confirmSpot(null,this)">Confirmer</span>'}`;
+  f.prepend(e);while(f.children.length>6)f.removeChild(f.lastChild);}
+let tmr;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(tmr);tmr=setTimeout(()=>t.classList.remove('show'),3000);}
+
+/* ═══ Boot ═══ */
+(async()=>{
+  await Api.boot();
+  Osm.load();
+  await refreshCommunity();await predictUI();
+  feed('leave','Karim · il y a 1 min');feed('free','Léa · il y a 2 min');
+  setInterval(async()=>{await refreshCommunity();await predictUI();
+    if(!Api.live){const t=['free','busy','leave','full'][Math.floor(Math.random()*4)];feed(t,`${names[Math.floor(Math.random()*names.length)]} · à l'instant`);}
+  },12000);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+# Déploiement continu — se déclenche UNIQUEMENT après une CI entièrement verte
+# sur main (leçon de l'anomalie B-05 : jamais de déploiement sans preuve).
+name: CD
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ github.event.workflow_run.head_sha }}" }
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build & push (image immuable par SHA + latest)
+        run: |
+          IMG=ghcr.io/${{ github.repository }}/wheretopark-api
+          docker build -f api/Dockerfile -t $IMG:${{ github.event.workflow_run.head_sha }} -t $IMG:latest .
+          docker push $IMG:${{ github.event.workflow_run.head_sha }}
+          docker push $IMG:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: production      # approbation manuelle configurable dans GitHub → Environments
+    steps:
+      - name: Déployer sur le serveur
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          if [ -z "$HOST" ]; then
+            echo "ℹ Secrets DEPLOY_HOST / DEPLOY_SSH_KEY non configurés : déploiement sauté (image publiée sur GHCR)."
+            exit 0
+          fi
+          mkdir -p ~/.ssh && echo "$SSH_KEY" > ~/.ssh/id && chmod 600 ~/.ssh/id
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id deploy@$HOST \
+            "cd /opt/wheretopark && docker compose pull api && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d && curl -fsS localhost:5000/health"

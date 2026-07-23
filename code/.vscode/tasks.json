@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "▶ API (mode démo, sans base)", "type": "shell",
+      "command": "npm start", "options": { "cwd": "${workspaceFolder}/api" },
+      "problemMatcher": [], "group": { "kind": "build", "isDefault": true } },
+    { "label": "🧪 Tests (38)", "type": "shell",
+      "command": "npm test", "options": { "cwd": "${workspaceFolder}/api" }, "problemMatcher": [] },
+    { "label": "📊 Couverture", "type": "shell",
+      "command": "npm run test:coverage", "options": { "cwd": "${workspaceFolder}/api" }, "problemMatcher": [] },
+    { "label": "🐳 Docker : tout démarrer (API + PostGIS)", "type": "shell",
+      "command": "docker compose up --build", "problemMatcher": [] },
+    { "label": "🐳 Docker : arrêter", "type": "shell",
+      "command": "docker compose down", "problemMatcher": [] },
+    { "label": "📄 Régénérer le dossier Word", "type": "shell",
+      "command": "npm install docx && node dossier.js",
+      "options": { "cwd": "${workspaceFolder}/docs/bloc2-developpement/generateurs" }, "problemMatcher": [] }
+  ]
+}

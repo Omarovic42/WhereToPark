@@ -1,0 +1,41 @@
+### Healthcheck
+GET {{host}}/health
+
+### Métriques Prometheus
+GET {{host}}/metrics
+
+### Inscription
+# @name register
+POST {{host}}/v1/auth/register
+Content-Type: application/json
+
+{ "email": "omar@ynov.com", "password": "S3curePass!" }
+
+### Connexion
+# @name login
+POST {{host}}/v1/auth/login
+Content-Type: application/json
+
+{ "email": "omar@ynov.com", "password": "S3curePass!" }
+
+### Signaler une place libre (+10 pts)
+POST {{host}}/v1/reports
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+{ "type": "free", "lat": 45.4397, "lng": 4.3872 }
+
+### Places et parkings à proximité
+GET {{host}}/v1/spots?lat=45.4397&lng=4.3872&radius=2000
+
+### Prédiction IA
+GET {{host}}/v1/predictions?lat=45.4397&lng=4.3872
+
+### Parkings mondiaux + voirie (OSM — nécessite internet)
+GET {{host}}/v1/osm/parkings?lat=48.8583&lng=2.3736&radius=1500
+
+### Route protégée sans token → 401 attendu
+POST {{host}}/v1/reports
+Content-Type: application/json
+
+{ "type": "free", "lat": 45.44, "lng": 4.39 }
