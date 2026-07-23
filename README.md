@@ -74,7 +74,7 @@ Modèle fourni : `code/.env.example` (à copier en `.env`, jamais commité).
 | `PORT` | Port d'écoute de l'API | `5000` |
 | `DATABASE_URL` | Connexion PostGIS ; **absente → mode démo** (repo mémoire) | `postgres://wtp:***@localhost:5432/wheretopark` |
 | `POSTGRES_PASSWORD` | Mot de passe injecté par docker-compose | à définir |
-| `JWT_SECRET` | Signature des tokens (⚠ à changer, 64 caractères aléatoires) | à définir |
+| `JWT_SECRET` | Signature des tokens (à changer, 64 caractères aléatoires) | à définir |
 | `CORS_ORIGIN` | Origine autorisée du front | `*` en dev |
 | `OSRM_URL` | Itinéraires auto-hébergés (exposé au front via `/v1/config`) | `http://localhost:5001` |
 | `TILE_URL` | Tuiles cartographiques auto-hébergées (optionnel) | — |
