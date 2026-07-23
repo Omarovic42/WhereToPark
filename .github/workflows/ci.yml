@@ -10,9 +10,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: api/package-lock.json }
+        with: { node-version: 22, cache: npm, cache-dependency-path: code/api/package-lock.json }
       - name: npm audit (bloquant sur high/critical)
-        working-directory: api
+        working-directory: code/api
         run: |
           npm ci --no-audit --no-fund
           npm audit --omit=dev --audit-level=high
@@ -25,18 +25,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: api/package-lock.json }
+        with: { node-version: 22, cache: npm, cache-dependency-path: code/api/package-lock.json }
       - name: Install
-        working-directory: api
+        working-directory: code/api
         run: npm ci --no-audit --no-fund
       - name: Tests unitaires + intégration (sans secret)
-        working-directory: api
+        working-directory: code/api
         run: npm test
       - name: Couverture
-        working-directory: api
+        working-directory: code/api
         run: npm run test:coverage
       - uses: actions/upload-artifact@v4
-        with: { name: coverage, path: api/coverage/lcov-report }
+        with: { name: coverage, path: code/api/coverage/lcov-report }
 
   performance:
     runs-on: ubuntu-latest
@@ -44,9 +44,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: api/package-lock.json }
+        with: { node-version: 22, cache: npm, cache-dependency-path: code/api/package-lock.json }
       - name: Démarrer l'API (mode démo, sans secret)
-        working-directory: api
+        working-directory: code/api
         run: |
           npm ci --no-audit --no-fund
           nohup node src/server.js > perf-api.log 2>&1 &
@@ -54,10 +54,10 @@ jobs:
           curl -fsS http://localhost:5000/health
       - uses: grafana/setup-k6-action@v1
       - name: Test de charge k6 (seuils bloquants p95<200ms, erreurs<1%)
-        run: k6 run api/tests/perf/health-load.js
+        run: k6 run code/api/tests/perf/health-load.js
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: perf-api-log, path: api/perf-api.log }
+        with: { name: perf-api-log, path: code/api/perf-api.log }
 
   docker-build:
     runs-on: ubuntu-latest
@@ -65,7 +65,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build image (reproductible, sans secret réel)
-        run: docker build -f api/Dockerfile -t wheretopark-api:${{ github.sha }} .
+        run: docker build -f code/api/Dockerfile -t wheretopark-api:${{ github.sha }} code
       - name: Smoke test /health en mode démo
         run: |
           docker run -d --name smoke -p 5000:5000 wheretopark-api:${{ github.sha }}

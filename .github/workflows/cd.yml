@@ -26,7 +26,7 @@ jobs:
       - name: Build & push (image immuable par SHA + latest)
         run: |
           IMG=ghcr.io/${{ github.repository }}/wheretopark-api
-          docker build -f api/Dockerfile -t $IMG:${{ github.event.workflow_run.head_sha }} -t $IMG:latest .
+          docker build -f code/api/Dockerfile -t $IMG:${{ github.event.workflow_run.head_sha }} -t $IMG:latest code
           docker push $IMG:${{ github.event.workflow_run.head_sha }}
           docker push $IMG:latest
 
