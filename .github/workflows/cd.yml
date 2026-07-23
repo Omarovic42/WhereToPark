@@ -6,11 +6,9 @@ on:
     workflows: [CI]
     types: [completed]
     branches: [main]
-
 permissions:
   contents: read
   packages: write
-
 jobs:
   build-and-push:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
@@ -25,11 +23,14 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build & push (image immuable par SHA + latest)
         run: |
-          IMG=ghcr.io/${{ github.repository }}/wheretopark-api
-          docker build -f code/api/Dockerfile -t $IMG:${{ github.event.workflow_run.head_sha }} -t $IMG:latest code
-          docker push $IMG:${{ github.event.workflow_run.head_sha }}
-          docker push $IMG:latest
-
+          # GHCR impose un nom de dépôt entièrement en minuscules : on normalise
+          # ${{ github.repository }} qui contient des majuscules (cf. anomalie B-08).
+          REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          IMG=ghcr.io/$REPO_LC/wheretopark-api
+          SHA=${{ github.event.workflow_run.head_sha }}
+          docker build -f code/api/Dockerfile -t "$IMG:$SHA" -t "$IMG:latest" code
+          docker push "$IMG:$SHA"
+          docker push "$IMG:latest"
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
