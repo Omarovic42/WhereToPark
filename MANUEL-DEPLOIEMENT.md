@@ -1,4 +1,4 @@
-# 🚀 Manuel de déploiement — WhereToPark
+# Manuel de déploiement — WhereToPark
 
 ## 1. Prérequis
 

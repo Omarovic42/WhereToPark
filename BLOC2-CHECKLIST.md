@@ -19,7 +19,7 @@
 | La dernière version du logiciel fonctionnel, fiable et viable | ✔ | Le dépôt lui-même : `docker compose up` → app complète ; 40/42 tests |
 | Le cahier de recettes | ✔ | Dossier §C2.3.1 — 23 scénarios RF/RT/RS/RA |
 | Le plan de correction des bogues | ✔ | Dossier §C2.3.2 — registre B-01→B-07 qualifié, corrigé, prouvé |
-| Le manuel de déploiement | ✔ | Dossier §C2.4.1 + `README.md` + `PROMPT-VSCODE.md` |
+| Le manuel de déploiement | ✔ | Dossier §C2.4.1 + `README.md` |
 | Le manuel d'utilisation | ✔ | Dossier § Manuel d'utilisation (profils utilisateur/VE-PMR/modérateur/admin) |
 | Le manuel de mise à jour | ✔ | Dossier § Manuel de mise à jour (dépendances, schéma, fournisseurs, rollback) |
 

@@ -1,4 +1,4 @@
-# 🔄 Manuel de mise à jour — WhereToPark
+# Manuel de mise à jour — WhereToPark
 
 ## 1. Mise à jour des dépendances (processus outillé)
 

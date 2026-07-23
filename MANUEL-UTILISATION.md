@@ -1,4 +1,4 @@
-# 📖 Manuel d'utilisation — WhereToPark
+# Manuel d'utilisation — WhereToPark
 
 ## 1. Premiers pas
 
